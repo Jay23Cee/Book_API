@@ -6,8 +6,43 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
+type Book struct {
+	Title  string
+	Author string
+}
+
+func addbooks(w http.ResponseWriter, r *http.Request) {
+
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+
+	// Migrate the schema
+	db.AutoMigrate(&Book{})
+
+	// Create
+	db.Create(&Book{Title: "D42", Author: "LEGEND MAKER"})
+
+	// Read
+	var book Book
+	db.First(&book, 1)                 // find book with integer primary key
+	db.First(&book, "code = ?", "D42") // find book with code D42
+
+	// Update - update book's price to 200
+	db.Model(&book).Update("Price", 200)
+	// Update - update multiple fields
+	db.Model(&book).Updates(Book{Title: "D42", Author: "LEGEND MAKER"}) // non-zero fields
+	db.Model(&book).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
+
+	// Delete - delete book
+	db.Delete(&book, 1)
+
+}
 func main() {
 	r := chi.NewRouter()
 
@@ -26,6 +61,7 @@ func main() {
 		w.Write([]byte("hi"))
 	})
 
+	r.Get("/add", addbooks)
 	// RESTy routes for "articles" resource
 
 	// Subrouters:
