@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -28,19 +29,19 @@ func addbooks(w http.ResponseWriter, r *http.Request) {
 	// Create
 	db.Create(&Book{Title: "D42", Author: "LEGEND MAKER"})
 
-	// Read
-	var book Book
-	db.First(&book, 1)                 // find book with integer primary key
-	db.First(&book, "code = ?", "D42") // find book with code D42
+	// // Read
+	// var book Book
+	// db.First(&book, 1)                 // find book with integer primary key
+	// db.First(&book, "code = ?", "D42") // find book with code D42
 
-	// Update - update book's price to 200
-	db.Model(&book).Update("Price", 200)
-	// Update - update multiple fields
-	db.Model(&book).Updates(Book{Title: "D42", Author: "LEGEND MAKER"}) // non-zero fields
-	db.Model(&book).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
+	// // Update - update book's price to 200
+	// db.Model(&book).Update("Price", 200)
+	// // Update - update multiple fields
+	// db.Model(&book).Updates(Book{Title: "D42", Author: "LEGEND MAKER"}) // non-zero fields
+	// db.Model(&book).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
 
 	// Delete - delete book
-	db.Delete(&book, 1)
+	//	db.Delete(&book, 1)
 
 }
 func main() {
@@ -67,6 +68,7 @@ func main() {
 	// Subrouters:
 
 	// Mount the admin sub-router
-
+	fmt.Print("ACTIVE")
 	http.ListenAndServe(":3333", r)
+
 }
