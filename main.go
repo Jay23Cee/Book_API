@@ -34,14 +34,25 @@ func addbooks(w http.ResponseWriter, r *http.Request) {
 	// db.First(&book, 1)                 // find book with integer primary key
 	// db.First(&book, "code = ?", "D42") // find book with code D42
 
-	// // Update - update book's price to 200
-	// db.Model(&book).Update("Price", 200)
-	// // Update - update multiple fields
-	// db.Model(&book).Updates(Book{Title: "D42", Author: "LEGEND MAKER"}) // non-zero fields
-	// db.Model(&book).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
-
 	// Delete - delete book
 	//	db.Delete(&book, 1)
+
+}
+
+func editbook(w http.ResponseWriter, r *http.Request) {
+	var book Book
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+
+	db.AutoMigrate(&Book{})
+
+	// Update - update book's price to 200
+	db.Model(&book).Update("Price", 200)
+	// Update - update multiple fields
+	db.Model(&book).Updates(Book{Title: "D42", Author: "LEGEND MAKER"}) // non-zero fields
+	db.Model(&book).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
 
 }
 func main() {
@@ -63,6 +74,7 @@ func main() {
 	})
 
 	r.Get("/add", addbooks)
+	r.Get("/edit", editbook)
 	// RESTy routes for "articles" resource
 
 	// Subrouters:
