@@ -12,10 +12,46 @@ import (
 )
 
 type Book struct {
-	Title  string
-	Author string
+	Title     string
+	Author    string
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
+func readBooks(w http.ResponseWriter, r *http.Request) {
+	var book Book
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+
+	db.First(&book, 1)                  // find book with integer primary key
+	db.First(&book, "Title = ?", "D42") // find book with code D42
+	w.Write([]byte(book.Title))
+
+}
+
+func getBooks(w http.ResponseWriter, r *http.Request) Book {
+	var book Book
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+
+	db.First(&book, 1)                  // find book with integer primary key
+	db.First(&book, "Title = ?", "D42") // find book with code D42
+	w.Write([]byte(book.Title))
+	return book
+}
+
+func deletebook(w http.ResponseWriter, r *http.Request) {
+
+	book := getBooks(w, r)
+
+	db.Delete(&book, book.ID)
+}
 func addbooks(w http.ResponseWriter, r *http.Request) {
 
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
@@ -28,11 +64,11 @@ func addbooks(w http.ResponseWriter, r *http.Request) {
 
 	// Create
 	db.Create(&Book{Title: "D42", Author: "LEGEND MAKER"})
-
+	w.Write([]byte("Adding Book"))
 	// // Read
 	// var book Book
 	// db.First(&book, 1)                 // find book with integer primary key
-	// db.First(&book, "code = ?", "D42") // find book with code D42
+	// db.First(&book, "Title = ?", "D42") // find book with code D42
 
 	// Delete - delete book
 	//	db.Delete(&book, 1)
@@ -75,6 +111,8 @@ func main() {
 
 	r.Get("/add", addbooks)
 	r.Get("/edit", editbook)
+	r.Get("/read", readBooks)
+	r.Get("/delete", deletebook)
 	// RESTy routes for "articles" resource
 
 	// Subrouters:
