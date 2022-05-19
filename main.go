@@ -49,7 +49,10 @@ func getBooks(w http.ResponseWriter, r *http.Request) Book {
 func deletebook(w http.ResponseWriter, r *http.Request) {
 
 	book := getBooks(w, r)
-
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
 	db.Delete(&book, book.ID)
 }
 func addbooks(w http.ResponseWriter, r *http.Request) {
