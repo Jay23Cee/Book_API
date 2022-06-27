@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -12,12 +14,20 @@ import (
 )
 
 type Book struct {
-	Title     string
-	Author    string
-	ID        uint `gorm:"primaryKey"`
+	Title  string `gorm:"Title"`
+	Author string
+
+	ID  uint `gorm:"primaryKey"`
+	Key uint
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+type Thing struct {
+	Value string
+	book  Book
 }
 
 func readBooks(w http.ResponseWriter, r *http.Request) {
@@ -29,69 +39,132 @@ func readBooks(w http.ResponseWriter, r *http.Request) {
 
 	db.First(&book, 1)                  // find book with integer primary key
 	db.First(&book, "Title = ?", "D42") // find book with code D42
-	w.Write([]byte(book.Title))
+	// fmt.Fprintf(w, " \n READING %v", book)
+	// w.Write([]byte(book.Title))
 
 }
 
-func getBooks(w http.ResponseWriter, r *http.Request) Book {
+func getBooks(w http.ResponseWriter, r *http.Request) {
 	var book Book
+	mymap := make(map[int]Book)
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
 
-	db.First(&book, 1)                  // find book with integer primary key
-	db.First(&book, "Title = ?", "D42") // find book with code D42
-	w.Write([]byte(book.Title))
-	return book
+	rows, err := db.Model(&Book{}).Rows()
+
+	defer rows.Close()
+	if err != nil {
+		panic(err)
+	}
+	count := 0
+	for rows.Next() {
+
+		db.ScanRows(rows, &book)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+
+		mymap[count] = book
+
+		count = count + 1
+
+	}
+	e, err := json.Marshal(mymap)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	w.Write([]byte(e))
+
+	// db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	// if err != nil {
+	// 	panic("failed to connect database")
+	// }
+
+	// db.First(&book, 1)                  // find book with integer primary key
+	// db.First(&book, "Title = ?", "D42") // find book with code D42
+	// w.Write([]byte(book.Title))
+
 }
 
 func deletebook(w http.ResponseWriter, r *http.Request) {
 
-	book := getBooks(w, r)
+	jsonMap := make(map[string]Book)
+	body, err := ioutil.ReadAll(r.Body)
+	err = json.Unmarshal([]byte(body), &jsonMap)
+	var temp Book
+	temp = jsonMap["book"]
+	fmt.Fprintf(w, " HERE AT DELETE %v,", temp.ID)
+
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
-	db.Delete(&book, book.ID)
+
+	// Update - update book's price to 200
+
+	// Update - update multiple fields
+
+	fmt.Fprintf(w, "UPDATED ---%v", db)
+
+	db.Delete(&temp)
 }
 func addbooks(w http.ResponseWriter, r *http.Request) {
 
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+
 	if err != nil {
 		panic("failed to connect database")
 	}
-
-	// Migrate the schema
 	db.AutoMigrate(&Book{})
 
-	// Create
-	db.Create(&Book{Title: "D42", Author: "LEGEND MAKER"})
-	w.Write([]byte("Adding Book"))
-	// // Read
-	// var book Book
-	// db.First(&book, 1)                 // find book with integer primary key
-	// db.First(&book, "Title = ?", "D42") // find book with code D42
+	body, err := ioutil.ReadAll(r.Body)
+	// var d struct{ Result map[string][]Book }
 
-	// Delete - delete book
-	//	db.Delete(&book, 1)
+	fmt.Fprintf(w, " bODY %v", body)
+
+	var t Book
+
+	err = json.Unmarshal(body, &t)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintf(w, " \n Unmarshall t %v", t)
+
+	jsonMap := make(map[string]Book)
+
+	err = json.Unmarshal([]byte(body), &jsonMap)
+	book := jsonMap["book"]
+	fmt.Fprintf(w, " \n JSON MAP Unmarshall t %v", jsonMap["book"])
+
+	db.Create(&book)
+	w.Write([]byte("Adding Book"))
+	fmt.Fprintf(w, " \n BOOK ADDED %v", book)
 
 }
 
 func editbook(w http.ResponseWriter, r *http.Request) {
-	var book Book
+
+	jsonMap := make(map[string]Book)
+	body, err := ioutil.ReadAll(r.Body)
+	err = json.Unmarshal([]byte(body), &jsonMap)
+	var temp Book
+	temp = jsonMap["book"]
+	fmt.Fprintf(w, " HERE AT EDIT %v,", temp)
+
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
 
-	db.AutoMigrate(&Book{})
-
 	// Update - update book's price to 200
-	db.Model(&book).Update("Price", 200)
+
 	// Update - update multiple fields
-	db.Model(&book).Updates(Book{Title: "D42", Author: "LEGEND MAKER"}) // non-zero fields
-	db.Model(&book).Updates(map[string]interface{}{"Price": 200, "Code": "F42"})
+	db.Model(&temp).Where("id = ?", temp.ID).Updates(map[string]interface{}{"Title": temp.Title, "Author": temp.Author})
+	fmt.Fprintf(w, "UPDATED ---%v", db)
 
 }
 func main() {
@@ -112,10 +185,10 @@ func main() {
 		w.Write([]byte("hi"))
 	})
 
-	r.Get("/add", addbooks)
-	r.Get("/edit", editbook)
-	r.Get("/read", readBooks)
-	r.Get("/delete", deletebook)
+	r.Post("/add", addbooks)
+	r.Post("/edit", editbook)
+	r.Get("/read", getBooks)
+	r.Post("/delete", deletebook)
 	// RESTy routes for "articles" resource
 
 	// Subrouters:
